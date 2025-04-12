@@ -20,21 +20,27 @@ public class Player : MonoBehaviour
     public bool screenWrapping = true;
     private Bounds screenBounds;
 
+    public AudioClip shootSound;
+    public AudioSource audioSource;
+
+    public float fireRate = 0.2f; // tempo entre tiros
+    private float fireCooldown = 0f;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        audioSource = GetComponent<AudioSource>();
     }
 
     private void Start()
     {
         GameObject[] boundaries = GameObject.FindGameObjectsWithTag("Boundary");
 
-        // Disable all boundaries if screen wrapping is enabled
-        for (int i = 0; i < boundaries.Length; i++) {
+        for (int i = 0; i < boundaries.Length; i++)
+        {
             boundaries[i].SetActive(!screenWrapping);
         }
 
-        // Convert screen space bounds to world space bounds
         screenBounds = new Bounds();
         screenBounds.Encapsulate(Camera.main.ScreenToWorldPoint(Vector3.zero));
         screenBounds.Encapsulate(Camera.main.ScreenToWorldPoint(new Vector3(Screen.width, Screen.height, 0f)));
@@ -42,8 +48,6 @@ public class Player : MonoBehaviour
 
     private void OnEnable()
     {
-        // Turn off collisions for a few seconds after spawning to ensure the
-        // player has enough time to safely move away from asteroids
         TurnOffCollisions();
         Invoke(nameof(TurnOnCollisions), respawnInvulnerability);
     }
@@ -52,47 +56,62 @@ public class Player : MonoBehaviour
     {
         thrusting = Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow);
 
-        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) {
+        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
+        {
             turnDirection = 1f;
-        } else if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) {
+        }
+        else if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
+        {
             turnDirection = -1f;
-        } else {
+        }
+        else
+        {
             turnDirection = 0f;
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0)) {
+        fireCooldown -= Time.deltaTime;
+
+        if ((Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0)) && fireCooldown <= 0f)
+        {
             Shoot();
+            fireCooldown = fireRate;
         }
     }
 
     private void FixedUpdate()
     {
-        if (thrusting) {
+        if (thrusting)
+        {
             rb.AddForce(transform.up * thrustSpeed);
         }
 
-        if (turnDirection != 0f) {
+        if (turnDirection != 0f)
+        {
             rb.AddTorque(rotationSpeed * turnDirection);
         }
 
-        if (screenWrapping) {
+        if (screenWrapping)
+        {
             ScreenWrap();
         }
     }
 
     private void ScreenWrap()
     {
-        // Move to the opposite side of the screen if the player exceeds the bounds
-        if (rb.position.x > screenBounds.max.x + 0.5f) {
+        if (rb.position.x > screenBounds.max.x + 0.5f)
+        {
             rb.position = new Vector2(screenBounds.min.x - 0.5f, rb.position.y);
         }
-        else if (rb.position.x < screenBounds.min.x - 0.5f) {
+        else if (rb.position.x < screenBounds.min.x - 0.5f)
+        {
             rb.position = new Vector2(screenBounds.max.x + 0.5f, rb.position.y);
         }
-        else if (rb.position.y > screenBounds.max.y + 0.5f) {
+        else if (rb.position.y > screenBounds.max.y + 0.5f)
+        {
             rb.position = new Vector2(rb.position.x, screenBounds.min.y - 0.5f);
         }
-        else if (rb.position.y < screenBounds.min.y - 0.5f) {
+        else if (rb.position.y < screenBounds.min.y - 0.5f)
+        {
             rb.position = new Vector2(rb.position.x, screenBounds.max.y + 0.5f);
         }
     }
@@ -101,6 +120,8 @@ public class Player : MonoBehaviour
     {
         Bullet bullet = Instantiate(bulletPrefab, transform.position, transform.rotation);
         bullet.Shoot(transform.up);
+
+        audioSource.PlayOneShot(shootSound, 0.1f); // som com volume reduzido
     }
 
     private void TurnOffCollisions()
@@ -123,5 +144,4 @@ public class Player : MonoBehaviour
             GameManager.Instance.OnPlayerDeath(this);
         }
     }
-
 }
